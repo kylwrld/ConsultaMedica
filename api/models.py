@@ -17,6 +17,7 @@ class Endereco(models.Model):
     paciente = models.ForeignKey(Paciente, to_field='cpf', on_delete=models.CASCADE, related_name="endereco", null=True)
 
 class Cadastro(AbstractUser):
+    username = None
     cpf = models.CharField(max_length=14, primary_key=True)
     paciente = models.ForeignKey(Paciente, to_field='cpf', on_delete=models.CASCADE, related_name='cadastro', null=True)
 

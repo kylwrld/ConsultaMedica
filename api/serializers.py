@@ -29,3 +29,8 @@ class PacienteSerializerReadOnly(serializers.ModelSerializer):
     class Meta:
         model = Paciente
         fields = ['cpf', 'nome', 'nome_social', 'cns', 'endereco']
+
+class CadastroSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cadastro
+        fields = ['cpf', 'password']
