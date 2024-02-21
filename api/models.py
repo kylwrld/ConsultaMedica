@@ -24,12 +24,12 @@ class Cadastro(AbstractUser):
     USERNAME_FIELD = 'cpf'
 
 class Fila(models.Model):
-    nome = models.CharField(max_length=45)
+    nome_fila = models.CharField(max_length=45)
     especialidade = models.CharField(max_length=45)
 
 class Agendamento(models.Model):
     class Preferences(models.TextChoices):
-        NO_PREFERENCE = "SEM PREFERÊNCIAS", "Sem preferência"
+        NO_PREFERENCE = "SEM PREFERÊNCIA", "Sem preferência"
         DEFICIENTE = "DEFICIENTE", "Deficiente"
         IDOSO = "IDOSO", "Idoso"
         GESTANTE = "GESTANTE", "Gestante"
@@ -37,16 +37,16 @@ class Agendamento(models.Model):
         OBESO = "OBESO", "Obeso"
         CRIANÇA_COLO = "CRIANÇA DE COLO", "Criança de colo"
 
-    data_prevista = models.DateField()
-    data_conclusao = models.DateField()
+    data_prevista = models.DateField(null=True)
+    data_conclusao = models.DateField(null=True)
     especialidade = models.CharField(max_length=45)
-    descricacao = models.TextField()
+    descricao = models.TextField()
     preferencia = models.CharField(max_length=25, choices=Preferences.choices, blank=True)
     paciente = models.ForeignKey(Paciente, to_field='cpf', on_delete=models.CASCADE)
 
 class Alocacao(models.Model):
-    paciente = models.ForeignKey(Paciente, to_field='cpf', on_delete=models.CASCADE)
+    paciente = models.ForeignKey(Paciente, related_name="alocacao", to_field='cpf', on_delete=models.CASCADE)
     fila = models.ForeignKey(Fila, to_field='id', on_delete=models.CASCADE)
     posicao = models.IntegerField(null=True)
     atendido = models.BooleanField(default=False)
-    agendamento = models.ForeignKey(Agendamento, to_field='id', on_delete=models.CASCADE, null=True)
+    agendamento = models.ForeignKey(Agendamento, to_field='id', related_name="agendamento", on_delete=models.CASCADE, null=True)
