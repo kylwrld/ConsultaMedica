@@ -35,7 +35,7 @@ class CadastroSerializer(serializers.ModelSerializer):
         model = Cadastro
         fields = ['cpf', 'password']
 
-class AgentamentoSerializer(serializers.ModelSerializer):
+class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
-        fields = ['especialidade', 'descricao', 'preferencia']
+        fields = ['especialidade', 'descricao', 'preferencia', 'data_prevista', 'data_conclusao']

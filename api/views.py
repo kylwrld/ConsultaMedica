@@ -2,11 +2,13 @@ from django.shortcuts import render, get_object_or_404, HttpResponse
 from .models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -124,10 +126,14 @@ class Consulta(APIView):
     #               preferencia, cpf, nome_fila
 
     def post(self, request: WSGIRequest, format=None):
-        agendamento_serializer = AgentamentoSerializer(data=request.data)
+        agendamento_serializer = AgendamentoSerializer(data=request.data)
 
         if agendamento_serializer.is_valid():
             paciente = get_object_or_404(Paciente, cpf=request.data["cpf"])
+
+            if len(Agendamento.objects.filter(especialidade=request.data["especialidade"], paciente=paciente)) >= 1:
+                return Response({"detail":"Consulta com médico já criada."}, status=status.HTTP_400_BAD_REQUEST)
+
             fila, is_created = Fila.objects.get_or_create(nome_fila=request.data["nome_fila"], 
                                                           especialidade=request.data["especialidade"])
             paciente.filas.add(fila)
@@ -138,8 +144,7 @@ class Consulta(APIView):
             s = perf_counter()
             alocacao = Alocacao.objects.filter(paciente=paciente)
             alocacao = alocacao[len(alocacao)-1]
-            alocacao.agendamento = agendamento
-            alocacao.save()
+            alocacao.save(agendamento=agendamento)
             e = perf_counter()
             print("SECONDS: ", e-s)
 
@@ -163,10 +168,28 @@ class ConsultaUser(APIView):
     def delete(self, request, format=None):
         paciente = Paciente.objects.get(cpf=request.user.cpf)
         agendamento = get_object_or_404(Agendamento, paciente=paciente, especialidade=request.data["especialidade"])
-
-        consulta = get_object_or_404(Alocacao, paciente=paciente, agendamento=agendamento)
         agendamento.delete()
+        fila = Fila.objects.get(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
+        paciente.filas.remove(fila)
+
         return Response(data={"detailt":"Item successfully deleted"}, status=status.HTTP_200_OK)
+    
+    # parameters:
+    #               nova_especialidade + AgendamentoModelFields
+    def put(self, request, format=None):
+        agendamento = get_object_or_404(Agendamento, paciente=request.user.paciente, especialidade=request.data["especialidade"])
+
+        if "nova_especialidade" in request.data:
+            request.data["especialidade"] = request.data["nova_especialidade"]
+
+        agendamento_serializer = AgendamentoSerializer(agendamento, data=request.data)
+
+        if agendamento_serializer.is_valid():
+            agendamento_serializer.save()
+            return Response(data=agendamento_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(data=agendamento_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 def teste(request):
     cpf = "123.123.123-57"
@@ -182,40 +205,7 @@ def teste(request):
 
     paciente = Paciente.objects.get(cpf=cpf)
     alocacao = Alocacao.objects.filter(paciente=paciente)
-    # alocacao = paciente.alocacao.all()[0]
-
 
     print(alocacao)
-    # Endereco.objects.create(uf=request.data["uf"], cidade=request.data["cidade"], bairro=request.data["bairro"], 
-    #                                            complemento=request.data["complemento"], cep=request.data["cep"], paciente=paciente)
-
-    # endereco = EnderecoSerializer(data={"uf":uf, "cidade":cidade, "bairro":bairro, 
-    #                                     "complemento":complemento, "cep":cep, "paciente":paciente})
-    
-    # endereco.is_valid()
-    # endereco = endereco.save()
-    # endereco.uf = "pb"
-    # endereco.save()
-
-    # endereco = Endereco.objects.create(uf=uf, cidade=cidade, bairro=bairro, complemento=complemento, cep=cep, paciente=paciente)
-    
-    # endereco.save()
-
-    # print(endereco)
-
-    # u = Paciente.objects.all()
-    # f = Fila.objects.all()
-    # c = Cadastro.objects.all()
-    # a = Alocacao.objects.all()
-    # ag = Agendamento.objects.all()
-
-    # print(u)
-    # print(" ")
-    # # print(f)
-    # print("Cadastro: ", c[0])
-    # # print(a)
-    # # print(ag)
-    # print(u[0].cadastro.all())
-
 
     return HttpResponse("Oi")
