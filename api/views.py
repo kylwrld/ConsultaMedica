@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer
@@ -21,7 +20,6 @@ from rest_framework_simplejwt.authentication import JWTStatelessUserAuthenticati
 from .serializers import *
 
 from time import perf_counter 
-
 
 class MyRefreshToken(RefreshToken):
     @classmethod
@@ -120,56 +118,58 @@ class Signup(APIView):
 
         return Response(serializer.errors)
 
-class Consulta(APIView):
-    # parameters: 
-    #               espcialidade, descricao
-    #               preferencia, cpf, nome_fila
+class FilaEndpoint(APIView):
+    def post(self, request, format=None):
+        try:
+            Fila.objects.get(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
+            return Response({"detail":"Fila já existe."}, status=status.HTTP_400_BAD_REQUEST)
+        except ObjectDoesNotExist:
+            fila_serializer = FilaSerializer(data=request.data)
 
+            if fila_serializer.is_valid():
+                fila_serializer.save()
+
+                return Response({"detail":"Fila criada com sucesso.", "fila":fila_serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(fila_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ConsultaUser(APIView):
+    
+    permission_classes = [IsAuthenticated]
+
+    # parameters: 
+    #               especialidade, descricao
+    #               preferencia, nome_fila,
+    #               data_prevista, data_conclusao
     def post(self, request: WSGIRequest, format=None):
+
         agendamento_serializer = AgendamentoSerializer(data=request.data)
 
         if agendamento_serializer.is_valid():
-            paciente = get_object_or_404(Paciente, cpf=request.data["cpf"])
+            paciente = Paciente.objects.get(cpf=request.user.cpf)
 
             if len(Agendamento.objects.filter(especialidade=request.data["especialidade"], paciente=paciente)) >= 1:
                 return Response({"detail":"Consulta com médico já criada."}, status=status.HTTP_400_BAD_REQUEST)
 
-            fila, is_created = Fila.objects.get_or_create(nome_fila=request.data["nome_fila"], 
-                                                          especialidade=request.data["especialidade"])
+            fila, _ = Fila.objects.get_or_create(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
             paciente.filas.add(fila)
             paciente.save()
             agendamento = agendamento_serializer.save(paciente=paciente)
-            
-            
-            s = perf_counter()
+
+            print("\nAGENDAMENTO: ", agendamento, "\n")
             alocacao = Alocacao.objects.filter(paciente=paciente)
             alocacao = alocacao[len(alocacao)-1]
             alocacao.save(agendamento=agendamento)
-            e = perf_counter()
-            print("SECONDS: ", e-s)
 
             return Response(agendamento_serializer.data)
-            
         return Response(agendamento_serializer.errors)
-    
-class ConsultaUser(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request: WSGIRequest, format=None):
-        paciente = Paciente.objects.get(cpf=request.data["cpf"])
-
-        alocacao = Alocacao.objects.filter(paciente=paciente)
-        alocacao = alocacao[len(alocacao)-1]
-
-        alocacao.save()
-
-        return Response({"data":"ok!"})
     
     def delete(self, request, format=None):
         paciente = Paciente.objects.get(cpf=request.user.cpf)
         agendamento = get_object_or_404(Agendamento, paciente=paciente, especialidade=request.data["especialidade"])
+
+        fila = get_object_or_404(Fila, nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
+
         agendamento.delete()
-        fila = Fila.objects.get(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
         paciente.filas.remove(fila)
 
         return Response(data={"detailt":"Item successfully deleted"}, status=status.HTTP_200_OK)
@@ -177,18 +177,41 @@ class ConsultaUser(APIView):
     # parameters:
     #               nova_especialidade + AgendamentoModelFields
     def put(self, request, format=None):
-        agendamento = get_object_or_404(Agendamento, paciente=request.user.paciente, especialidade=request.data["especialidade"])
+        if self.check_queue(request.user.paciente, request.data["nova_especialidade"], request.data["novo_medico"]):
+            return Response({"detail":"Usuário já cadastrado na fila."}) 
+
+        try:
+            agendamento = Agendamento.objects.get(paciente=request.user.paciente, especialidade=request.data["especialidade"])
+        except ObjectDoesNotExist:
+            return Response({"detail":"Fila não existe."}, status=status.HTTP_400_BAD_REQUEST)
 
         if "nova_especialidade" in request.data:
+            try:
+                fila = Fila.objects.get(nome_fila=request.data["novo_medico"], especialidade=request.data["nova_especialidade"])
+            except ObjectDoesNotExist:
+                return Response({"detail":"Fila não existe."}, status=status.HTTP_400_BAD_REQUEST)
+
             request.data["especialidade"] = request.data["nova_especialidade"]
 
         agendamento_serializer = AgendamentoSerializer(agendamento, data=request.data)
 
         if agendamento_serializer.is_valid():
-            agendamento_serializer.save()
+            agendamento = agendamento_serializer.save()
+            alocacao = agendamento.alocacao
+            alocacao.fila = fila
+            alocacao.save()
+
             return Response(data=agendamento_serializer.data, status=status.HTTP_201_CREATED)
         return Response(data=agendamento_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @staticmethod
+    def check_queue(client, new_spec, new_doc):
+        try:
+            agendamento_update = Agendamento.objects.get(paciente=client, especialidade=new_spec)
+            if agendamento_update.alocacao.fila.nome_fila == new_doc:
+                return True
+        except:
+            return False
 
 
 def teste(request):
@@ -203,9 +226,17 @@ def teste(request):
     complemento = "apt x"
     cep = "08326498"
 
-    paciente = Paciente.objects.get(cpf=cpf)
-    alocacao = Alocacao.objects.filter(paciente=paciente)
+    fila = Fila.objects.get(nome_fila="Otávio", especialidade="Oftalmologista")
 
-    print(alocacao)
+    # paciente = Paciente.objects.get(cpf=cpf)
+    # alocacao = Alocacao.objects.filter(paciente=paciente)
+
+    # paciente = get_object_or_404(Paciente, cpf=cpf)
+    # agendamento = Agendamento.objects.get(especialidade="Teste", paciente=paciente)
+    # alocacao = agendamento.alocacao.paciente
+
+    print("Filas: ", fila)
+
+    # print(paciente.filas)
 
     return HttpResponse("Oi")

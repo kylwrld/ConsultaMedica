@@ -49,10 +49,11 @@ class Alocacao(models.Model):
     fila = models.ForeignKey(Fila, to_field='id', on_delete=models.CASCADE)
     posicao = models.IntegerField(null=True)
     atendido = models.BooleanField(default=False)
-    agendamento = models.ForeignKey(Agendamento, to_field='id', related_name="agendamento", on_delete=models.CASCADE, null=True)
+    agendamento = models.OneToOneField(Agendamento, to_field='id', related_name="alocacao", on_delete=models.CASCADE, null=True)
 
     def save(self, *args, **kwargs):
-        agendamento = kwargs.pop("agendamento", None)
-        self.agendamento = agendamento
+        if "agendamento" in kwargs:
+            agendamento = kwargs.pop("agendamento", None)
+            self.agendamento = agendamento
 
         super(Alocacao, self).save(*args, **kwargs)

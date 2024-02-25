@@ -5,18 +5,12 @@ from django.utils import timezone
 class FilaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fila
-        fields = ['nome', 'especialidade']
+        fields = ['nome_fila', 'especialidade']
 
 class EnderecoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Endereco
         fields = ['uf', 'cidade', 'bairro', 'complemento', 'cep']
-        # extra_kwargs = {'uf': {'required': True}, 
-        #                 'cidade':{'required': True},
-        #                 'bairro':{'required':True},
-        #                 'complemento':{'required':True},
-        #                 'cep':{'required':True}
-        #                 }
 
 class PacienteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,6 +30,7 @@ class CadastroSerializer(serializers.ModelSerializer):
         fields = ['cpf', 'password']
 
 class AgendamentoSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Agendamento
         fields = ['especialidade', 'descricao', 'preferencia', 'data_prevista', 'data_conclusao']
