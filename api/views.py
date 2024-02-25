@@ -62,12 +62,7 @@ class Login(APIView):
         if not correct_password:
             return Response({"detail":"Not found"}, status=status.HTTP_404_NOT_FOUND)
         
-
-        s = perf_counter()
         tokens = MyRefreshToken().for_user(user)
-
-        e = perf_counter()
-        print("SECONDS: ", e-s)
 
         data = {
             "refresh": str(tokens),
@@ -85,7 +80,7 @@ class Signup(APIView):
     # parameters: 
     #               cpf, password, nome, nome_social, cns
     #               uf, cidade, bairro, complemento, cep
-    
+
     def post(self, request: WSGIRequest, format=None):
         serializer = PacienteSerializer(data=request.data)
 
@@ -103,10 +98,7 @@ class Signup(APIView):
 
             paciente_serializer = PacienteSerializerReadOnly(paciente)
 
-            s = perf_counter()
             refresh = MyRefreshToken().for_user(cadastro)
-            e = perf_counter()
-            print("SECONDS: ", e-s)
             
             data = {
                 "refresh":str(refresh),
@@ -131,6 +123,38 @@ class FilaEndpoint(APIView):
 
                 return Response({"detail":"Fila criada com sucesso.", "fila":fila_serializer.data}, status=status.HTTP_201_CREATED)
             return Response(fila_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # parameters:
+    #               nome_fila, especialidade
+    def delete(self, request, format=None):
+        try:
+            fila = Fila.objects.get(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
+            fila.delete()
+        except ObjectDoesNotExist:
+            return Response({"detail":"Fila não existe."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"detail":"Fila deletada."}, status=status.HTTP_201_CREATED)
+
+    # parameters:
+    #               novo_medico, nova_especialidade
+    def put(self, request, format=None):
+        try:
+            fila = Fila.objects.get(nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
+        except ObjectDoesNotExist:
+            return Response({"detail":"Fila não existe."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = {}
+
+        if "novo_medico" in request.data:
+            data["nome_fila"] = request.data["novo_medico"]
+        if "nova_especialidade" in request.data:
+            data["especialidade"] = request.data["nova_especialidade"]
+
+        fila_serializer = FilaSerializer(fila, data=data)
+
+        if fila_serializer.is_valid():
+            fila_serializer.save()
+            return Response({"detail":"Fila atualizada."}, status=status.HTTP_201_CREATED)
+        return Response(fila_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ConsultaUser(APIView):
     
