@@ -14,7 +14,7 @@ class Endereco(models.Model):
     bairro = models.CharField(max_length=30)
     complemento = models.CharField(max_length=30)
     cep = models.CharField(max_length=30)
-    paciente = models.ForeignKey(Paciente, to_field='cpf', on_delete=models.CASCADE, related_name="endereco", null=True)
+    paciente = models.OneToOneField(Paciente, to_field='cpf', on_delete=models.CASCADE, related_name="endereco", null=True)
 
 class Cadastro(AbstractUser):
     username = None

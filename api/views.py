@@ -132,7 +132,7 @@ class FilaEndpoint(APIView):
             fila.delete()
         except ObjectDoesNotExist:
             return Response({"detail":"Fila não existe."}, status=status.HTTP_404_NOT_FOUND)
-        return Response({"detail":"Fila deletada."}, status=status.HTTP_201_CREATED)
+        return Response({"detail":"Fila deletada com sucesso."}, status=status.HTTP_200_OK)
 
     # parameters:
     #               novo_medico, nova_especialidade
@@ -153,7 +153,7 @@ class FilaEndpoint(APIView):
 
         if fila_serializer.is_valid():
             fila_serializer.save()
-            return Response({"detail":"Fila atualizada."}, status=status.HTTP_201_CREATED)
+            return Response({"detail":"Fila atualizada com sucesso."}, status=status.HTTP_201_CREATED)
         return Response(fila_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ConsultaUser(APIView):
@@ -196,7 +196,7 @@ class ConsultaUser(APIView):
         agendamento.delete()
         paciente.filas.remove(fila)
 
-        return Response(data={"detailt":"Item successfully deleted"}, status=status.HTTP_200_OK)
+        return Response(data={"detailt":"Item deletado com sucesso"}, status=status.HTTP_200_OK)
     
     # parameters:
     #               nova_especialidade + AgendamentoModelFields
@@ -207,13 +207,13 @@ class ConsultaUser(APIView):
         try:
             agendamento = Agendamento.objects.get(paciente=request.user.paciente, especialidade=request.data["especialidade"])
         except ObjectDoesNotExist:
-            return Response({"detail":"Fila não existe."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail":"Fila não existe."}, status=status.HTTP_404_NOT_FOUND)
 
         if "nova_especialidade" in request.data:
             try:
                 fila = Fila.objects.get(nome_fila=request.data["novo_medico"], especialidade=request.data["nova_especialidade"])
             except ObjectDoesNotExist:
-                return Response({"detail":"Fila não existe."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail":"Fila não existe."}, status=status.HTTP_404_NOT_FOUND)
 
             request.data["especialidade"] = request.data["nova_especialidade"]
 
@@ -237,6 +237,38 @@ class ConsultaUser(APIView):
         except:
             return False
 
+class User(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, format=None):
+        paciente = request.user.paciente
+        paciente.delete()
+
+        return Response({"detail":"Paciente deletado com sucesso."}, status=status.HTTP_200_OK)
+    
+    def put(self, request, format=None):
+        paciente = request.user.paciente
+        
+        if "cpf" in request.data:
+            return Response({"detail":"Não pode mudar o CPF."}, status=status.HTTP_400_BAD_REQUEST)
+
+        paciente_serializer = PacienteSerializerUpdate(paciente, data=request.data)
+
+        if paciente_serializer.is_valid():
+            paciente = paciente_serializer.save()
+            
+            print(paciente.endereco)
+
+            endereco_serializer = EnderecoSerializerUpdate(paciente.endereco, data=request.data)
+            if endereco_serializer.is_valid():
+                print("AAAAAAAAAAAAAAA!@#!@!@#DAS-")
+                endereco_serializer.save()
+
+                return Response({"detail":"Todos os dados foram atualizados. 1"}, status=status.HTTP_201_CREATED)
+
+            return Response({"detail":"Todos os dados foram atualizados. 2"}, status=status.HTTP_201_CREATED)
+        return Response(paciente_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
 
 def teste(request):
     cpf = "123.123.123-57"
