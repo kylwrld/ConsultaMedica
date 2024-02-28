@@ -16,6 +16,9 @@ class Endereco(models.Model):
     cep = models.CharField(max_length=30)
     paciente = models.OneToOneField(Paciente, to_field='cpf', on_delete=models.CASCADE, related_name="endereco", null=True)
 
+    # def __iter__(self):
+    #     return [self.uf, self.cidade, self.bairro, self.complemento, self.cep]
+
 class Cadastro(AbstractUser):
     username = None
     cpf = models.CharField(max_length=14, primary_key=True)

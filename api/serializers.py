@@ -36,7 +36,7 @@ class PacienteSerializer(serializers.ModelSerializer):
         fields = ['cpf', 'nome', 'nome_social', 'cns']
 
 class PacienteSerializerReadOnly(serializers.ModelSerializer):
-    endereco = EnderecoSerializer(read_only=True, many=True)
+    endereco = EnderecoSerializer(read_only=True)
 
     class Meta:
         model = Paciente

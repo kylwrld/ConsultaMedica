@@ -87,9 +87,12 @@ class Signup(APIView):
         if serializer.is_valid():
             paciente = serializer.save()
 
+            endereco_serializer = EnderecoSerializer(data=request.data)
+            if endereco_serializer.is_valid():
+                endereco_serializer.save(paciente=paciente)
 
-            Endereco.objects.create(uf=request.data["uf"], cidade=request.data["cidade"], bairro=request.data["bairro"], 
-                                               complemento=request.data["complemento"], cep=request.data["cep"], paciente=paciente)
+            # Endereco.objects.create(uf=request.data["uf"], cidade=request.data["cidade"], bairro=request.data["bairro"], 
+                                            #    complemento=request.data["complemento"], cep=request.data["cep"], paciente=paciente)
 
 
             cadastro = Cadastro.objects.create(cpf=paciente.cpf, paciente=paciente)
@@ -188,7 +191,7 @@ class ConsultaUser(APIView):
         return Response(agendamento_serializer.errors)
     
     def delete(self, request, format=None):
-        paciente = Paciente.objects.get(cpf=request.user.cpf)
+        paciente = request.user.paciente
         agendamento = get_object_or_404(Agendamento, paciente=paciente, especialidade=request.data["especialidade"])
 
         fila = get_object_or_404(Fila, nome_fila=request.data["nome_fila"], especialidade=request.data["especialidade"])
@@ -196,7 +199,7 @@ class ConsultaUser(APIView):
         agendamento.delete()
         paciente.filas.remove(fila)
 
-        return Response(data={"detailt":"Item deletado com sucesso"}, status=status.HTTP_200_OK)
+        return Response(data={"detail":"Item deletado com sucesso"}, status=status.HTTP_200_OK)
     
     # parameters:
     #               nova_especialidade + AgendamentoModelFields
@@ -268,31 +271,3 @@ class User(APIView):
 
             return Response({"detail":"Todos os dados foram atualizados. 2"}, status=status.HTTP_201_CREATED)
         return Response(paciente_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-
-def teste(request):
-    cpf = "123.123.123-57"
-    password = "1234"
-    nome = "Daniel"
-    nome_social = "teste"
-    cns = 12345 
-    uf = "pe" 
-    cidade = "recife"
-    bairro = "encruzilhada" 
-    complemento = "apt x"
-    cep = "08326498"
-
-    fila = Fila.objects.get(nome_fila="Otávio", especialidade="Oftalmologista")
-
-    # paciente = Paciente.objects.get(cpf=cpf)
-    # alocacao = Alocacao.objects.filter(paciente=paciente)
-
-    # paciente = get_object_or_404(Paciente, cpf=cpf)
-    # agendamento = Agendamento.objects.get(especialidade="Teste", paciente=paciente)
-    # alocacao = agendamento.alocacao.paciente
-
-    print("Filas: ", fila)
-
-    # print(paciente.filas)
-
-    return HttpResponse("Oi")
